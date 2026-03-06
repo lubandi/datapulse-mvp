@@ -60,3 +60,14 @@ class TestCalculateQualityScore:
         assert score["score"] == 50.0
         assert score["passed_rules"] == 2
         assert score["failed_rules"] == 1
+
+    def test_proportional_scoring(self):
+        """HIGH rule fails 2 out of 10 rows (80% pass). Weight 3.
+        Total weight 3. Passed weight 3 * 0.8 = 2.4. Score = 80.0"""
+        rules = [MockRule(1, "HIGH")]
+        results = [
+            {"rule_id": 1, "passed": False, "total_rows": 10, "failed_rows": 2},
+        ]
+        score = calculate_quality_score(results, rules)
+        assert score["score"] == 80.0
+        assert score["failed_rules"] == 1

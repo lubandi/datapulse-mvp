@@ -113,5 +113,5 @@ def test_full_e2e_flow(client):
     datasets_resp = client.get("/api/datasets/")
     assert datasets_resp.status_code == 200
     datasets = datasets_resp.json()
-    e2e_dataset = next(d for d in datasets if d["id"] == dataset_id)
+    e2e_dataset = next(d for d in datasets["datasets"] if d["id"] == dataset_id)
     assert e2e_dataset["status"] in ("VALIDATED", "FAILED")

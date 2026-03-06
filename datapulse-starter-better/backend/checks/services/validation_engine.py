@@ -12,7 +12,11 @@ class ValidationEngine:
         """Run all validation checks. Returns list of result dicts."""
         results = []
         for rule in rules:
-            params = json.loads(rule.parameters) if rule.parameters else {}
+            try:
+                params = json.loads(rule.parameters) if rule.parameters and str(rule.parameters).strip() else {}
+            except json.JSONDecodeError:
+                params = {}
+                
             if rule.rule_type == "NOT_NULL":
                 result = self.null_check(df, rule.field_name)
             elif rule.rule_type == "DATA_TYPE":

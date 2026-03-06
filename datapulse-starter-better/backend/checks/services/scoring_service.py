@@ -34,11 +34,18 @@ def calculate_quality_score(results: list, rules: list) -> dict:
         weight = severity_weights.get(rule.severity, 1) if rule else 1
 
         total_weight += weight
+        
         if result.get("passed"):
             passed_weight += weight
             passed_count += 1
         else:
             failed_count += 1
+            # Proportional credit for rows that did pass
+            total_rows = result.get("total_rows", 0)
+            failed_rows = result.get("failed_rows", 0)
+            if total_rows > 0:
+                passed_ratio = max(0, total_rows - failed_rows) / total_rows
+                passed_weight += (weight * passed_ratio)
 
     score = (passed_weight / total_weight * 100) if total_weight > 0 else 0.0
 
