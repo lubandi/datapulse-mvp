@@ -40,7 +40,10 @@ class RunChecksView(APIView):
         """
         # 1. Fetch dataset
         try:
-            dataset = Dataset.objects.get(id=dataset_id)
+            if getattr(request.user, "role", "USER") == "ADMIN":
+                dataset = Dataset.objects.get(id=dataset_id)
+            else:
+                dataset = Dataset.objects.get(id=dataset_id, uploaded_by=request.user)
         except Dataset.DoesNotExist:
             raise DatasetNotFoundException(f"Dataset with id {dataset_id} not found")
 
@@ -131,9 +134,12 @@ class CheckResultsView(APIView):
     )
     def get(self, request, dataset_id):
         """Get all check results for a dataset."""
-        # Verify dataset exists
+        # Verify dataset exists and belongs to user
         try:
-            Dataset.objects.get(id=dataset_id)
+            if getattr(request.user, "role", "USER") == "ADMIN":
+                Dataset.objects.get(id=dataset_id)
+            else:
+                Dataset.objects.get(id=dataset_id, uploaded_by=request.user)
         except Dataset.DoesNotExist:
             raise DatasetNotFoundException(f"Dataset with id {dataset_id} not found")
 

@@ -93,8 +93,13 @@ class DatasetListView(APIView):
         limit = max(1, min(limit, 100))
         skip = max(0, skip)
 
-        total = Dataset.objects.count()
-        datasets = Dataset.objects.all().order_by("-uploaded_at")[skip : skip + limit]
+        if getattr(request.user, "role", "USER") == "ADMIN":
+            queryset = Dataset.objects.all()
+        else:
+            queryset = Dataset.objects.filter(uploaded_by=request.user)
+
+        total = queryset.count()
+        datasets = queryset.order_by("-uploaded_at")[skip : skip + limit]
 
         return Response(
             DatasetListSerializer({"datasets": datasets, "total": total}).data,

@@ -24,6 +24,15 @@ class DatasetReportView(APIView):
     )
     def get(self, request, dataset_id):
         """Get a full quality report for a dataset."""
+        from datasets.models import Dataset
+        try:
+            if getattr(request.user, "role", "USER") == "ADMIN":
+                Dataset.objects.get(id=dataset_id)
+            else:
+                Dataset.objects.get(id=dataset_id, uploaded_by=request.user)
+        except Dataset.DoesNotExist:
+            raise DatasetNotFoundException(f"Dataset with id {dataset_id} not found")
+
         report = generate_report(dataset_id)
         if report is None:
             raise DatasetNotFoundException(f"Dataset with id {dataset_id} not found")
@@ -48,7 +57,7 @@ class QualityTrendsView(APIView):
     def get(self, request):
         """Get quality score trends over time."""
         days = int(request.query_params.get("days", 30))
-        scores = get_trend_data(days=days)
+        scores = get_trend_data(days=days, user=request.user)
         return Response(
             QualityScoreResponseSerializer(scores, many=True).data,
             status=status.HTTP_200_OK,
@@ -65,8 +74,12 @@ class DashboardView(APIView):
     )
     def get(self, request):
         """Return the latest QualityScore for each dataset that has been checked."""
-        # Get unique dataset IDs that have scores, then fetch latest for each
-        dataset_ids = QualityScore.objects.values_list("dataset_id", flat=True).distinct()
+        # Get unique dataset IDs that have scores, filtered by user
+        if getattr(request.user, "role", "USER") == "ADMIN":
+            dataset_ids = QualityScore.objects.values_list("dataset_id", flat=True).distinct()
+        else:
+            dataset_ids = QualityScore.objects.filter(dataset__uploaded_by=request.user).values_list("dataset_id", flat=True).distinct()
+
         latest_scores = []
         for ds_id in dataset_ids:
             latest = (
