@@ -168,3 +168,81 @@ def test_full_e2e_flow_json(client):
     # - duplicate code (row 1 & 4)
     # - invalid regex code (row 3 "invalid-code")
     assert score_data["failed_rules"] >= 1
+
+
+@pytest.mark.django_db
+def test_regex_escaping_behavior(client):
+    """Test how the API handles escaped vs unescaped regex patterns."""
+    import json
+    
+    reg_resp = client.post(
+        "/api/auth/register",
+        {"email": "regex@example.com", "password": VALID_PASSWORD, "full_name": "Regex User"},
+        format="json",
+    )
+    token = reg_resp.json()["access_token"]
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+    # CSV with SSN Data
+    csv_content = (
+        b"id,ssn\n"
+        b"1,123-45-6789\n" # Valid format
+        b"2,123456789\n"   # Invalid format
+    )
+    uploaded = SimpleUploadedFile("ssn.csv", csv_content, content_type="text/csv")
+    upload_resp = client.post("/api/datasets/upload", {"file": uploaded}, format="multipart")
+    dataset_id = upload_resp.json()["id"]
+
+    # Test 1: Properly escaped JSON string for Regex \d
+    # We want the JSON string to contain `\\d`, meaning we must pass a string that parses back to `\\d` in Python.
+    escaped_pattern = json.dumps({"pattern": "^\\d{3}-\\d{2}-\\d{4}$"})
+    
+    # Test 2: Unescaped \d within JSON string (invalid JSON payload)
+    # If a user just sends `{"pattern": "^\d..."}`, the JSON parser fails.
+    unescaped_pattern = '{"pattern": "^\\d{3}-\\d{2}-\\d{4}$"}' # Python literal equivalent of receiving \d
+
+    # Rule 1
+    resp1 = client.post("/api/rules/", {
+        "name": "Escaped SSN", 
+        "rule_type": "REGEX", 
+        "field_name": "ssn", 
+        "dataset_type": "csv", 
+        "severity": "HIGH",
+        "parameters": escaped_pattern
+    }, format="json")
+    assert resp1.status_code == 201
+    rule1_id = resp1.json()["id"]
+
+    # Rule 2
+    resp2 = client.post("/api/rules/", {
+        "name": "Unescaped SSN", 
+        "rule_type": "REGEX", 
+        "field_name": "ssn", 
+        "dataset_type": "csv", 
+        "severity": "HIGH",
+        "parameters": unescaped_pattern
+    }, format="json")
+    assert resp2.status_code == 201
+    rule2_id = resp2.json()["id"]
+    
+    # Run Checks
+    client.post(f"/api/checks/run/{dataset_id}")
+    
+    # Fetch results
+    results_resp = client.get(f"/api/checks/results/{dataset_id}")
+    results = results_resp.json()
+    
+    escaped_result = next(r for r in results if r["rule_id"] == rule1_id)
+    unescaped_result = next(r for r in results if r["rule_id"] == rule2_id)
+    
+    # Escaped pattern works perfectly: catches the bad row (1 failure)
+    assert escaped_result["passed"] is False
+    assert escaped_result["failed_rows"] == 1 
+    assert escaped_result["total_rows"] == 2
+
+    # Unescaped pattern behavior:
+    # Our new RuleCreateSerializer intercepts the unescaped \d and auto-repairs it!
+    # Therefore, the unescaped regex should work perfectly, identical to the escaped one!
+    assert unescaped_result["passed"] is False
+    assert unescaped_result["failed_rows"] == 1
+    assert unescaped_result["total_rows"] == 2
