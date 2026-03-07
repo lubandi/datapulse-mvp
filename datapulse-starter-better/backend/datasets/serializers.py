@@ -1,17 +1,16 @@
-"""Dataset serializers matching original Pydantic schemas."""
+"""Dataset serializers."""
 
 from rest_framework import serializers
+from datasets.models import Dataset
 
 
-class DatasetResponseSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    name = serializers.CharField()
-    file_type = serializers.CharField()
-    row_count = serializers.IntegerField()
-    column_count = serializers.IntegerField()
-    column_names = serializers.CharField(allow_null=True)
-    status = serializers.CharField()
-    uploaded_at = serializers.DateTimeField()
+class DatasetResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Dataset
+        fields = [
+            "id", "name", "file_type", "row_count", 
+            "column_count", "column_names", "status", "uploaded_at"
+        ]
 
 
 class DatasetListSerializer(serializers.Serializer):

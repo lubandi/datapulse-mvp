@@ -45,16 +45,22 @@ class BatchCheckView(APIView):
         results = []
         user = request.user if request.user and request.user.is_authenticated else None
 
+        if getattr(request.user, "role", "USER") == "ADMIN":
+            datasets = Dataset.objects.filter(id__in=dataset_ids)
+        else:
+            datasets = Dataset.objects.filter(id__in=dataset_ids, uploaded_by=request.user)
+            
+        dataset_map = {ds.id: ds for ds in datasets}
+
         for ds_id in dataset_ids:
-            try:
-                dataset = Dataset.objects.get(id=ds_id)
-            except Dataset.DoesNotExist:
+            dataset = dataset_map.get(ds_id)
+            if not dataset:
                 results.append({
                     "dataset_id": ds_id,
                     "dataset_name": "Unknown",
                     "score": 0.0,
                     "status": "ERROR",
-                    "detail": f"Dataset {ds_id} not found",
+                    "detail": f"Dataset {ds_id} not found or access denied",
                 })
                 continue
 
@@ -102,7 +108,10 @@ class AuditLogListView(APIView):
     )
     def get(self, request):
         """List audit log entries with optional filtering."""
-        queryset = AuditLog.objects.select_related("user", "dataset").all()
+        if getattr(request.user, "role", "USER") == "ADMIN":
+            queryset = AuditLog.objects.select_related("user", "dataset").all()
+        else:
+            queryset = AuditLog.objects.select_related("user", "dataset").filter(user=request.user)
 
         dataset_id = request.query_params.get("dataset_id")
         if dataset_id:
@@ -133,7 +142,14 @@ class AlertConfigListCreateView(APIView):
     )
     def get(self, request):
         """List all alert configurations."""
-        configs = AlertConfig.objects.select_related("dataset").filter(is_active=True)
+        if getattr(request.user, "role", "USER") == "ADMIN":
+            configs = AlertConfig.objects.select_related("dataset").filter(is_active=True)
+        else:
+            from django.db.models import Q
+            configs = AlertConfig.objects.select_related("dataset").filter(
+                Q(dataset__isnull=True) | Q(dataset__uploaded_by=request.user),
+                is_active=True
+            )
         return Response(
             AlertConfigResponseSerializer(configs, many=True).data,
             status=status.HTTP_200_OK,
@@ -154,9 +170,16 @@ class AlertConfigListCreateView(APIView):
         dataset = None
         if data.get("dataset_id"):
             try:
-                dataset = Dataset.objects.get(id=data["dataset_id"])
+                if getattr(request.user, "role", "USER") == "ADMIN":
+                    dataset = Dataset.objects.get(id=data["dataset_id"])
+                else:
+                    dataset = Dataset.objects.get(id=data["dataset_id"], uploaded_by=request.user)
             except Dataset.DoesNotExist:
-                raise DatasetNotFoundException(f"Dataset {data['dataset_id']} not found")
+                raise DatasetNotFoundException(f"Dataset {data['dataset_id']} not found or access denied")
+        elif getattr(request.user, "role", "USER") != "ADMIN":
+            # Only ADMIN can create global alerts
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Only administrators can create global alert configurations.")
 
         config = AlertConfig.objects.create(
             dataset=dataset,
@@ -182,7 +205,17 @@ class AlertConfigDetailView(APIView):
     def put(self, request, config_id):
         """Update an existing alert configuration."""
         try:
-            config = AlertConfig.objects.get(id=config_id)
+            if getattr(request.user, "role", "USER") == "ADMIN":
+                config = AlertConfig.objects.get(id=config_id)
+            else:
+                from django.db.models import Q
+                config = AlertConfig.objects.get(
+                    Q(id=config_id),
+                    Q(dataset__isnull=True, is_active=True) | Q(dataset__uploaded_by=request.user)
+                )
+                if config.dataset is None:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied("Cannot modify global alert configurations.")
         except AlertConfig.DoesNotExist:
             return Response(
                 {"detail": f"Alert config {config_id} not found"},
@@ -209,7 +242,17 @@ class AlertConfigDetailView(APIView):
     def delete(self, request, config_id):
         """Delete an alert configuration."""
         try:
-            config = AlertConfig.objects.get(id=config_id)
+            if getattr(request.user, "role", "USER") == "ADMIN":
+                config = AlertConfig.objects.get(id=config_id)
+            else:
+                from django.db.models import Q
+                config = AlertConfig.objects.get(
+                    Q(id=config_id),
+                    Q(dataset__isnull=True, is_active=True) | Q(dataset__uploaded_by=request.user)
+                )
+                if config.dataset is None:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied("Cannot delete global alert configurations.")
         except AlertConfig.DoesNotExist:
             return Response(
                 {"detail": f"Alert config {config_id} not found"},
@@ -231,7 +274,11 @@ class ScheduleConfigListCreateView(APIView):
     )
     def get(self, request):
         """List all schedule configurations."""
-        configs = ScheduleConfig.objects.select_related("dataset").all()
+        if getattr(request.user, "role", "USER") == "ADMIN":
+            configs = ScheduleConfig.objects.select_related("dataset").all()
+        else:
+            configs = ScheduleConfig.objects.select_related("dataset").filter(dataset__uploaded_by=request.user)
+            
         return Response(
             ScheduleConfigResponseSerializer(configs, many=True).data,
             status=status.HTTP_200_OK,
@@ -250,7 +297,10 @@ class ScheduleConfigListCreateView(APIView):
         data = serializer.validated_data
 
         try:
-            dataset = Dataset.objects.get(id=data["dataset_id"])
+            if getattr(request.user, "role", "USER") == "ADMIN":
+                dataset = Dataset.objects.get(id=data["dataset_id"])
+            else:
+                dataset = Dataset.objects.get(id=data["dataset_id"], uploaded_by=request.user)
         except Dataset.DoesNotExist:
             raise DatasetNotFoundException(f"Dataset {data['dataset_id']} not found")
 
@@ -277,7 +327,10 @@ class ScheduleConfigDetailView(APIView):
     def put(self, request, config_id):
         """Update an existing schedule configuration."""
         try:
-            config = ScheduleConfig.objects.select_related("dataset").get(id=config_id)
+            if getattr(request.user, "role", "USER") == "ADMIN":
+                config = ScheduleConfig.objects.select_related("dataset").get(id=config_id)
+            else:
+                config = ScheduleConfig.objects.select_related("dataset").get(id=config_id, dataset__uploaded_by=request.user)
         except ScheduleConfig.DoesNotExist:
             return Response(
                 {"detail": f"Schedule config {config_id} not found"},
@@ -304,7 +357,10 @@ class ScheduleConfigDetailView(APIView):
     def delete(self, request, config_id):
         """Delete a schedule configuration."""
         try:
-            config = ScheduleConfig.objects.get(id=config_id)
+            if getattr(request.user, "role", "USER") == "ADMIN":
+                config = ScheduleConfig.objects.get(id=config_id)
+            else:
+                config = ScheduleConfig.objects.get(id=config_id, dataset__uploaded_by=request.user)
         except ScheduleConfig.DoesNotExist:
             return Response(
                 {"detail": f"Schedule config {config_id} not found"},

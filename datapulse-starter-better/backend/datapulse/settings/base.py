@@ -98,6 +98,8 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "datapulse.exception_handler.custom_exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "UNAUTHENTICATED_USER": None,
+    "DEFAULT_PAGINATION_CLASS": "datapulse.pagination.DataPulsePagination",
+    "PAGE_SIZE": 20,
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",

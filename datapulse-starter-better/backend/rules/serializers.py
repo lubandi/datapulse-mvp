@@ -1,34 +1,34 @@
-"""Rule serializers matching original Pydantic schemas."""
+"""Rule serializers."""
 
 from rest_framework import serializers
+from rules.models import ValidationRule
 
 
-class RuleCreateSerializer(serializers.Serializer):
-    name = serializers.CharField()
-    dataset_type = serializers.CharField(allow_blank=True)
-    field_name = serializers.CharField()
-    rule_type = serializers.CharField()
-    parameters = serializers.CharField(required=False, allow_null=True, allow_blank=True, default=None)
-    severity = serializers.CharField(default="MEDIUM")
+class RuleCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ValidationRule
+        fields = ["name", "dataset_type", "field_name", "rule_type", "parameters", "severity"]
 
 
-class RuleResponseSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    name = serializers.CharField()
-    dataset_type = serializers.CharField()
-    field_name = serializers.CharField()
-    rule_type = serializers.CharField()
-    parameters = serializers.CharField(allow_null=True, allow_blank=True)
-    severity = serializers.CharField()
-    is_active = serializers.BooleanField()
-    created_at = serializers.DateTimeField()
+class RuleResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ValidationRule
+        fields = [
+            "id", "name", "dataset_type", "field_name", "rule_type", 
+            "parameters", "severity", "is_active", "created_at"
+        ]
 
 
-class RuleUpdateSerializer(serializers.Serializer):
-    name = serializers.CharField(required=False, allow_null=True)
-    dataset_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    field_name = serializers.CharField(required=False, allow_null=True)
-    rule_type = serializers.CharField(required=False, allow_null=True)
-    parameters = serializers.CharField(required=False, allow_null=True, allow_blank=True)
-    severity = serializers.CharField(required=False, allow_null=True)
-    is_active = serializers.BooleanField(required=False, allow_null=True)
+class RuleUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ValidationRule
+        fields = ["name", "dataset_type", "field_name", "rule_type", "parameters", "severity", "is_active"]
+        extra_kwargs = {
+            "name": {"required": False},
+            "dataset_type": {"required": False},
+            "field_name": {"required": False},
+            "rule_type": {"required": False},
+            "parameters": {"required": False},
+            "severity": {"required": False},
+            "is_active": {"required": False},
+        }
