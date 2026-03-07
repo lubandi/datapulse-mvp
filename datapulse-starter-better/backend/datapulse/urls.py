@@ -1,10 +1,12 @@
 """DataPulse URL Configuration."""
 
+from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.contrib import admin
 
 
 class RootView(APIView):
@@ -26,6 +28,8 @@ class HealthCheckView(APIView):
 
 
 urlpatterns = [
+    path("admin/", admin.site.urls),
+    
     # Root & Health
     path("", RootView.as_view(), name="root"),
     path("health/", HealthCheckView.as_view(), name="health"),

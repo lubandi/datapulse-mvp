@@ -21,8 +21,12 @@ ALGORITHM = env("ALGORITHM", default="HS256")
 
 # --- Application definition ---
 INSTALLED_APPS = [
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
     "drf_spectacular",
@@ -36,7 +40,12 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = "datapulse.urls"
@@ -50,6 +59,9 @@ TEMPLATES = [
         "OPTIONS": {},
     },
 ]
+
+# --- Static files ---
+STATIC_URL = "static/"
 
 # --- Database ---
 DATABASES = {
