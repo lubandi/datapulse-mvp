@@ -20,7 +20,7 @@ The system is composed of the following services (orchestrated via Docker Compos
 To run the entire stack locally in isolated containers:
 
 1. **Install Docker Desktop**: If you haven't already, please download and install it from [docker.com](https://www.docker.com/products/docker-desktop/).
-2. Open your terminal at the root of the project and run:
+2. Open your terminal at the root of the project (where docker-compose.yml is) and run:
    ```bash
    docker-compose up --build
    ```
