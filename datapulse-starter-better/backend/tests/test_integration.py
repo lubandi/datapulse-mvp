@@ -115,3 +115,56 @@ def test_full_e2e_flow(client):
     datasets = datasets_resp.json()
     e2e_dataset = next(d for d in datasets["datasets"] if d["id"] == dataset_id)
     assert e2e_dataset["status"] in ("VALIDATED", "FAILED")
+
+
+@pytest.mark.django_db
+def test_full_e2e_flow_json(client):
+    """End-to-end for JSON dataset: register → upload → rules → checks → report."""
+    
+    # 1. Register & Auth
+    reg_resp = client.post(
+        "/api/auth/register",
+        {"email": "e2e_json@example.com", "password": VALID_PASSWORD, "full_name": "E2E Json User"},
+        format="json",
+    )
+    assert reg_resp.status_code == 201
+    token = reg_resp.json()["access_token"]
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+    # 2. Upload JSON
+    import json
+    json_content = json.dumps([
+        {"id": 1, "product": "Apple", "price": 1.20, "code": "A123"},
+        {"id": 2, "product": "Banana", "price": 0.80, "code": "B456"},
+        {"id": 3, "product": None, "price": 1500.00, "code": "invalid-code"},
+        {"id": 4, "product": "Orange", "price": 0.90, "code": "A123"}, # Duplicate code
+    ]).encode()
+    
+    uploaded = SimpleUploadedFile("data.json", json_content, content_type="application/json")
+    upload_resp = client.post("/api/datasets/upload", {"file": uploaded}, format="multipart")
+    assert upload_resp.status_code == 201
+    dataset_id = upload_resp.json()["id"]
+
+    # 3. Create Rules
+    rules_to_create = [
+        {"name": "Product not null", "rule_type": "NOT_NULL", "field_name": "product", "dataset_type": "json", "severity": "HIGH"},
+        {"name": "Price range", "rule_type": "RANGE", "field_name": "price", "dataset_type": "json", "parameters": '{"min": 0, "max": 100}', "severity": "MEDIUM"},
+        {"name": "Code Unique", "rule_type": "UNIQUE", "field_name": "code", "dataset_type": "json", "severity": "HIGH"},
+        {"name": "Code Regex", "rule_type": "REGEX", "field_name": "code", "dataset_type": "json", "parameters": '{"pattern": "^[A-Z][0-9]{3}$"}', "severity": "LOW"},
+    ]
+    for rule_data in rules_to_create:
+        resp = client.post("/api/rules/", rule_data, format="json")
+        assert resp.status_code == 201
+
+    # 4. Run checks
+    check_resp = client.post(f"/api/checks/run/{dataset_id}")
+    assert check_resp.status_code == 200
+    score_data = check_resp.json()
+    assert score_data["total_rules"] == 4
+    
+    # We expect failures: 
+    # - null product (row 3)
+    # - price > 100 (row 3)
+    # - duplicate code (row 1 & 4)
+    # - invalid regex code (row 3 "invalid-code")
+    assert score_data["failed_rules"] >= 1
