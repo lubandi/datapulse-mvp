@@ -1,24 +1,27 @@
-"""Check result serializers matching original Pydantic schemas."""
+"""Check result serializers."""
 
 from rest_framework import serializers
+from checks.models import CheckResult, QualityScore
 
 
-class CheckResultResponseSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    dataset_id = serializers.IntegerField(source="dataset.id")
-    rule_id = serializers.IntegerField(source="rule.id")
-    passed = serializers.BooleanField()
-    failed_rows = serializers.IntegerField()
-    total_rows = serializers.IntegerField()
-    details = serializers.CharField(allow_null=True)
-    checked_at = serializers.DateTimeField()
+class CheckResultResponseSerializer(serializers.ModelSerializer):
+    dataset_id = serializers.IntegerField(source="dataset.id", read_only=True)
+    rule_id = serializers.IntegerField(source="rule.id", read_only=True)
+
+    class Meta:
+        model = CheckResult
+        fields = [
+            "id", "dataset_id", "rule_id", "passed", 
+            "failed_rows", "total_rows", "details", "checked_at"
+        ]
 
 
-class QualityScoreResponseSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    dataset_id = serializers.IntegerField(source="dataset.id")
-    score = serializers.FloatField()
-    total_rules = serializers.IntegerField()
-    passed_rules = serializers.IntegerField()
-    failed_rules = serializers.IntegerField()
-    checked_at = serializers.DateTimeField()
+class QualityScoreResponseSerializer(serializers.ModelSerializer):
+    dataset_id = serializers.IntegerField(source="dataset.id", read_only=True)
+
+    class Meta:
+        model = QualityScore
+        fields = [
+            "id", "dataset_id", "score", "total_rules", 
+            "passed_rules", "failed_rules", "checked_at"
+        ]
