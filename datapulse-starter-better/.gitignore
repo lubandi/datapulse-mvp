@@ -17,3 +17,4 @@ staticfiles/
 backend/uploads/*
 !backend/uploads/.gitkeep
 backend/gunicorn.ctl
+backend/celerybeat-schedule
