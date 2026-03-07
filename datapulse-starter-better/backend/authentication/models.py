@@ -1,6 +1,6 @@
 """User model for DataPulse authentication."""
 
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
 
@@ -18,6 +18,8 @@ class UserManager(BaseUserManager):
 
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("role", "ADMIN")
         return self.create_user(email, password, **extra_fields)
 
@@ -28,13 +30,14 @@ ROLE_CHOICES = [
 ]
 
 
-class User(AbstractBaseUser):
+class User(AbstractBaseUser, PermissionsMixin):
     """Custom user model matching the original FastAPI User model."""
 
     email = models.EmailField(max_length=255, unique=True, db_index=True)
     full_name = models.CharField(max_length=255)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="USER")
     is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()

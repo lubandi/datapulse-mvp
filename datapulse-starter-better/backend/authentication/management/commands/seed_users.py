@@ -29,10 +29,17 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"User {email} already exists, skipping."))
                 continue
 
-            User.objects.create_user(
-                email=email,
-                password=user_data["password"],
-                full_name=user_data["full_name"],
-                role=user_data["role"],
-            )
+            if user_data["role"] == "ADMIN":
+                User.objects.create_superuser(
+                    email=email,
+                    password=user_data["password"],
+                    full_name=user_data["full_name"],
+                )
+            else:
+                User.objects.create_user(
+                    email=email,
+                    password=user_data["password"],
+                    full_name=user_data["full_name"],
+                    role=user_data["role"],
+                )
             self.stdout.write(self.style.SUCCESS(f"Created {user_data['role']} user: {email}"))

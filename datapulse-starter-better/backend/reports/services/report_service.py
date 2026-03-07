@@ -51,15 +51,20 @@ def generate_report(dataset_id: int) -> dict:
     }
 
 
-def get_trend_data(days: int = 30) -> list:
+def get_trend_data(days: int = 30, user=None) -> list:
     """Get quality score trend data over a given number of days.
 
     Returns a list of QualityScore records ordered by date, with dataset info.
+    Filters by the dataset owner (uploaded_by) unless user is ADMIN.
     """
     start_date = timezone.now() - timedelta(days=days)
+    queryset = QualityScore.objects.filter(checked_at__gte=start_date)
+    
+    if user and getattr(user, "role", "USER") != "ADMIN":
+        queryset = queryset.filter(dataset__uploaded_by=user)
+        
     scores = (
-        QualityScore.objects.filter(checked_at__gte=start_date)
-        .select_related("dataset")
+        queryset.select_related("dataset")
         .order_by("checked_at")
     )
     return scores
