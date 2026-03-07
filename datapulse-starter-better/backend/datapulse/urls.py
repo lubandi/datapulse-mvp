@@ -29,6 +29,7 @@ class HealthCheckView(APIView):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", include("django_prometheus.urls")),
     
     # Root & Health
     path("", RootView.as_view(), name="root"),
