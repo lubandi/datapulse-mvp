@@ -52,6 +52,7 @@ This will automatically spin up the database, cache, run all Django database mig
 | GET    | `/api/reports/{id}`             | Retrieve dataset quality report metrics |
 | GET    | `/api/reports/trends?days=30`   | Time-series reporting for checks |
 | GET    | `/api/reports/dashboard`        | Dashboard aggregates |
+| GET    | `/metrics/`                     | Prometheus application metrics exposition |
 
 ## Test Accounts
 

@@ -56,6 +56,7 @@ Authentication is required for all endpoints except `register` and `login`.
 | **GET**  | `/api/reports/{id}`             | Generate a comprehensive quality report for a given dataset. | ✅ Done |
 | **GET**  | `/api/reports/trends?days=30`   | Get timeline of quality scores for line charts. | ✅ Done |
 | **GET**  | `/api/reports/dashboard`        | Get aggregated latest scores for all datasets. | ✅ Done |
+| **GET**  | `/metrics/`                     | Prometheus application metrics exposition. | ✅ Done |
 
 > **Note:** For exact JSON schemas and models, please view the auto-generated **Swagger Documentation** by starting the server and navigating to `http://localhost:8000/docs/`.
 

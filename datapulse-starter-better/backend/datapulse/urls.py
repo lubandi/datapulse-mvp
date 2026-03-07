@@ -9,6 +9,10 @@ from rest_framework.views import APIView
 from django.contrib import admin
 
 
+from django.http import HttpResponse
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from drf_spectacular.utils import extend_schema
+
 class RootView(APIView):
     """Root endpoint."""
 
@@ -16,6 +20,19 @@ class RootView(APIView):
 
     def get(self, request):
         return Response({"name": "DataPulse", "version": "1.0.0", "docs": "/docs"})
+
+class MetricsProxyView(APIView):
+    """Prometheus Metrics Endpoint."""
+    
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        responses={200: str},
+        summary="Get Prometheus App Metrics",
+        description="Returns application performance and health metrics in Prometheus exposition format for scraping by Grafana."
+    )
+    def get(self, request):
+        return HttpResponse(generate_latest(), content_type=CONTENT_TYPE_LATEST)
 
 
 class HealthCheckView(APIView):
@@ -29,7 +46,7 @@ class HealthCheckView(APIView):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", include("django_prometheus.urls")),
+    path("metrics/", MetricsProxyView.as_view(), name="metrics"),
     
     # Root & Health
     path("", RootView.as_view(), name="root"),
