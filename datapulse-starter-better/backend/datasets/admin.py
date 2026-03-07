@@ -10,5 +10,5 @@ class DatasetAdmin(admin.ModelAdmin):
 
 @admin.register(DatasetFile)
 class DatasetFileAdmin(admin.ModelAdmin):
-    list_display = ('dataset', 'original_filename', 'uploaded_at')
+    list_display = ('dataset', 'original_filename', 'file_path')
     search_fields = ('original_filename', 'dataset__name')
