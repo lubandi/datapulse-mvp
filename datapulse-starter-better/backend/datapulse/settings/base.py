@@ -128,8 +128,10 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ]
 
-# --- File Uploads ---
+# --- File Uploads & Static Files ---
 UPLOAD_DIR = env("UPLOAD_DIR", default=os.path.join(BASE_DIR, "uploads"))
+STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # --- Celery (for scheduled tasks) ---
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
@@ -168,6 +170,10 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
+        "standard": {
+            "format": "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            "datefmt": "%d/%b/%Y %H:%M:%S"
+        },
         "structlog_formatter": {
             "()": structlog.stdlib.ProcessorFormatter,
             "processors": [
@@ -181,8 +187,15 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": "structlog_formatter",
         },
+        "standard_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
     },
     "loggers": {
+        "django": {"handlers": ["standard_console"], "level": "INFO", "propagate": False},
+        "django.request": {"handlers": ["standard_console"], "level": "ERROR", "propagate": False},
+        "django.server": {"handlers": ["standard_console"], "level": "INFO", "propagate": False},
         # Route all custom app logs through structlog
         "authentication": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "datasets": {"handlers": ["console"], "level": "INFO", "propagate": False},
