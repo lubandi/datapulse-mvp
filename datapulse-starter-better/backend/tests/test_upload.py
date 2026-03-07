@@ -69,3 +69,21 @@ def test_upload_unauthenticated(client):
     uploaded = SimpleUploadedFile("noauth.csv", csv_content, content_type="text/csv")
     resp = client.post("/api/datasets/upload", {"file": uploaded}, format="multipart")
     assert resp.status_code == 401
+
+
+@pytest.mark.django_db
+def test_upload_large_file(auth_client):
+    """Test uploading a file larger than 10MB."""
+    # Generate ~10.5MB of CSV data (21 bytes per row * 500,000 rows)
+    header = b"id,name,value\n"
+    row = b"1,TestName,123456789\n"
+    content = header + (row * 500000)
+    
+    uploaded = SimpleUploadedFile("large.csv", content, content_type="text/csv")
+    resp = auth_client.post("/api/datasets/upload", {"file": uploaded}, format="multipart")
+    
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["row_count"] == 500000
+    assert data["file_type"] == "csv"
+
