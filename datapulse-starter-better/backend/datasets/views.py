@@ -75,33 +75,21 @@ class DatasetUploadView(APIView):
         )
 
 
-class DatasetListView(APIView):
-    """List all datasets with pagination."""
+from rest_framework import generics
+
+class DatasetListView(generics.ListAPIView):
+    """List all datasets."""
+    serializer_class = DatasetResponseSerializer
 
     @extend_schema(
-        parameters=[
-            OpenApiParameter("skip", OpenApiTypes.INT, OpenApiParameter.QUERY, default=0),
-            OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY, default=20),
-        ],
         responses={200: DatasetListSerializer},
         tags=["Datasets"],
-        summary="List all datasets",
+        summary="List previously uploaded datasets",
     )
-    def get(self, request):
-        skip = int(request.query_params.get("skip", 0))
-        limit = int(request.query_params.get("limit", 20))
-        limit = max(1, min(limit, 100))
-        skip = max(0, skip)
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
-        if getattr(request.user, "role", "USER") == "ADMIN":
-            queryset = Dataset.objects.all()
-        else:
-            queryset = Dataset.objects.filter(uploaded_by=request.user)
-
-        total = queryset.count()
-        datasets = queryset.order_by("-uploaded_at")[skip : skip + limit]
-
-        return Response(
-            DatasetListSerializer({"datasets": datasets, "total": total}).data,
-            status=status.HTTP_200_OK,
-        )
+    def get_queryset(self):
+        if getattr(self.request.user, "role", "USER") == "ADMIN":
+            return Dataset.objects.all().order_by("-uploaded_at")
+        return Dataset.objects.filter(uploaded_by=self.request.user).order_by("-uploaded_at")
