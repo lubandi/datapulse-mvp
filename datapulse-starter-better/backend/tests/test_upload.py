@@ -14,9 +14,9 @@ def test_upload_csv_success(auth_client):
     data = resp.json()
     assert data["name"] == "test"
     assert data["file_type"] == "csv"
-    assert data["row_count"] == 3
-    assert data["column_count"] == 3
-    assert data["status"] == "PENDING"
+    assert data["row_count"] == 0
+    assert data["column_count"] == 0
+    assert data["status"] == "PROCESSING"
 
 
 @pytest.mark.django_db
@@ -32,7 +32,8 @@ def test_upload_json_success(auth_client):
     assert resp.status_code == 201
     data = resp.json()
     assert data["file_type"] == "json"
-    assert data["row_count"] == 2
+    assert data["row_count"] == 0
+    assert data["status"] == "PROCESSING"
 
 
 @pytest.mark.django_db
@@ -84,6 +85,6 @@ def test_upload_large_file(auth_client):
     
     assert resp.status_code == 201
     data = resp.json()
-    assert data["row_count"] == 500000
-    assert data["file_type"] == "csv"
+    assert data["row_count"] == 0
+    assert data["status"] == "PROCESSING"
 

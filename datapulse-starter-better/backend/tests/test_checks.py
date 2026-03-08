@@ -4,7 +4,11 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 
+from django.test import override_settings
+
+
 @pytest.mark.django_db
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 def test_run_checks_on_dataset(auth_client, sample_csv_content):
     """Upload CSV, create a rule, run checks, verify score is returned."""
     # Upload
@@ -37,6 +41,7 @@ def test_run_checks_on_dataset(auth_client, sample_csv_content):
 
 
 @pytest.mark.django_db
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 def test_run_checks_no_rules(auth_client, sample_csv_content):
     """If no matching rules exist, score should be 100."""
     uploaded = SimpleUploadedFile("norules.csv", sample_csv_content, content_type="text/csv")
@@ -55,6 +60,7 @@ def test_run_checks_nonexistent_dataset(auth_client):
 
 
 @pytest.mark.django_db
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 def test_get_check_results(auth_client, sample_csv_content):
     """Run checks then verify results are retrievable."""
     uploaded = SimpleUploadedFile("results.csv", sample_csv_content, content_type="text/csv")

@@ -50,25 +50,23 @@ class DatasetUploadView(APIView):
         with open(file_path, "wb") as fh:
             fh.write(content)
 
-        try:
-            metadata = parse_csv(file_path) if ext == "csv" else parse_json(file_path)
-        except Exception as e:
-            os.remove(file_path)
-            raise InvalidFileException(f"Failed to parse: {e}")
-
         dataset = Dataset.objects.create(
             name=filename.rsplit(".", 1)[0],
             file_type=ext,
-            row_count=metadata["row_count"],
-            column_count=metadata["column_count"],
-            column_names=json.dumps(metadata["column_names"]),
+            row_count=0,
+            column_count=0,
+            column_names=None,
             uploaded_by=request.user if request.user and request.user.is_authenticated else None,
-            status="PENDING",
+            status="PROCESSING",
         )
 
         DatasetFile.objects.create(
             dataset=dataset, file_path=file_path, original_filename=filename
         )
+
+        # Trigger Celery Task asynchronously
+        from datasets.tasks import parse_dataset_file_task
+        parse_dataset_file_task.delay(dataset.id)
 
         return Response(
             DatasetResponseSerializer(dataset).data, status=status.HTTP_201_CREATED

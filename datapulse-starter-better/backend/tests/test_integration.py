@@ -6,10 +6,13 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 
+from django.test import override_settings
+
 VALID_PASSWORD = "IntegTest1!"
 
 
 @pytest.mark.django_db
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 def test_full_e2e_flow(client):
     """End-to-end: register → upload → rules → checks → report → trends."""
 
@@ -36,7 +39,7 @@ def test_full_e2e_flow(client):
     upload_resp = client.post("/api/datasets/upload", {"file": uploaded}, format="multipart")
     assert upload_resp.status_code == 201
     dataset_id = upload_resp.json()["id"]
-    assert upload_resp.json()["row_count"] == 5
+    assert upload_resp.json()["row_count"] == 0
 
     # 3. Create rules
     rules_to_create = [
@@ -118,6 +121,7 @@ def test_full_e2e_flow(client):
 
 
 @pytest.mark.django_db
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 def test_full_e2e_flow_json(client):
     """End-to-end for JSON dataset: register → upload → rules → checks → report."""
     
@@ -171,6 +175,7 @@ def test_full_e2e_flow_json(client):
 
 
 @pytest.mark.django_db
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True)
 def test_regex_escaping_behavior(client):
     """Test how the API handles escaped vs unescaped regex patterns."""
     import json
