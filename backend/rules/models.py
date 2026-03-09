@@ -7,7 +7,7 @@ class ValidationRule(models.Model):
     """A data validation rule that can be applied to datasets."""
 
     name = models.CharField(max_length=255)
-    dataset_type = models.CharField(max_length=100)
+    dataset_type = models.CharField(max_length=100, blank=True)
     field_name = models.CharField(max_length=255)
     rule_type = models.CharField(max_length=20)
     parameters = models.TextField(null=True, blank=True)

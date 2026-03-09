@@ -7,14 +7,11 @@ from rules.models import ValidationRule
 class RuleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ValidationRule
-        fields = [
-            "name",
-            "dataset_type",
-            "field_name",
-            "rule_type",
-            "parameters",
-            "severity",
-        ]
+        fields = ["name", "dataset_type", "field_name", "rule_type", "parameters", "severity"]
+        extra_kwargs = {
+            "dataset_type": {"allow_blank": True, "required": False},
+            "parameters": {"allow_blank": True, "required": False},
+        }
 
     def validate_parameters(self, value):
         if not value or not str(value).strip():
@@ -49,6 +46,10 @@ class RuleResponseSerializer(serializers.ModelSerializer):
             "is_active",
             "created_at",
         ]
+        extra_kwargs = {
+            "dataset_type": {"allow_blank": True},
+            "parameters": {"allow_blank": True},
+        }
 
 
 class RuleUpdateSerializer(serializers.ModelSerializer):
@@ -65,10 +66,10 @@ class RuleUpdateSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             "name": {"required": False},
-            "dataset_type": {"required": False},
+            "dataset_type": {"required": False, "allow_blank": True},
             "field_name": {"required": False},
             "rule_type": {"required": False},
-            "parameters": {"required": False},
+            "parameters": {"required": False, "allow_blank": True},
             "severity": {"required": False},
             "is_active": {"required": False},
         }
