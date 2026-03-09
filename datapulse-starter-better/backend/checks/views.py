@@ -47,81 +47,29 @@ class RunChecksView(APIView):
         except Dataset.DoesNotExist:
             raise DatasetNotFoundException(f"Dataset with id {dataset_id} not found")
 
-        # 2. Get file path
-        dataset_file = DatasetFile.objects.filter(dataset=dataset).first()
-        if not dataset_file:
-            raise QualityCheckFailedException("No file associated with this dataset")
+        # 2. Execute checks via shared service
+        from scheduling.services import run_checks_for_dataset
+        from scheduling.notifications import check_and_notify
 
-        # 3. Parse file
-        try:
-            if dataset.file_type == "csv":
-                metadata = parse_csv(dataset_file.file_path)
-            else:
-                metadata = parse_json(dataset_file.file_path)
-            df = metadata["dataframe"]
-        except Exception as e:
-            raise QualityCheckFailedException(f"Failed to parse dataset file: {e}")
+        user = request.user if request.user and request.user.is_authenticated else None
+        result = run_checks_for_dataset(dataset, user=user, action="CHECK_RUN")
 
-        # 4. Fetch active rules matching dataset type (or rules with blank/null dataset_type)
-        from django.db.models import Q
-        rules = list(
-            ValidationRule.objects.filter(is_active=True).filter(
-                Q(dataset_type=dataset.file_type) | Q(dataset_type="") | Q(dataset_type__isnull=True)
-            )
-        )
+        if "error" in result:
+            raise QualityCheckFailedException(result["error"])
 
-        if not rules:
-            # No rules to run — mark as validated with perfect score
-            score_record = QualityScore.objects.create(
-                dataset=dataset, score=100.0, total_rules=0, passed_rules=0, failed_rules=0
-            )
-            dataset.status = "VALIDATED"
-            dataset.save()
+        # 3. Check and trigger email notifications
+        if "score" in result:
+            check_and_notify(dataset, result["score"])
+
+        # 4. Return QualityScore
+        if "quality_score_id" in result:
+            score_record = QualityScore.objects.get(id=result["quality_score_id"])
             return Response(
                 QualityScoreResponseSerializer(score_record).data,
                 status=status.HTTP_200_OK,
             )
-
-        # 5. Run all checks
-        engine = ValidationEngine()
-        results = engine.run_all_checks(df, rules)
-
-        # 6. Create CheckResult records
-        check_records = []
-        for result in results:
-            check_records.append(
-                CheckResult(
-                    dataset=dataset,
-                    rule_id=result["rule_id"],
-                    passed=result["passed"],
-                    failed_rows=result["failed_rows"],
-                    total_rows=result["total_rows"],
-                    details=result.get("details", ""),
-                )
-            )
-        CheckResult.objects.bulk_create(check_records)
-
-        # 7. Calculate quality score
-        score_data = calculate_quality_score(results, rules)
-
-        # 8. Create QualityScore record
-        score_record = QualityScore.objects.create(
-            dataset=dataset,
-            score=score_data["score"],
-            total_rules=score_data["total_rules"],
-            passed_rules=score_data["passed_rules"],
-            failed_rules=score_data["failed_rules"],
-        )
-
-        # 9. Update dataset status
-        dataset.status = "VALIDATED" if score_data["score"] >= 50 else "FAILED"
-        dataset.save()
-
-        # 10. Return score
-        return Response(
-            QualityScoreResponseSerializer(score_record).data,
-            status=status.HTTP_200_OK,
-        )
+        else:
+            raise QualityCheckFailedException("Failed to retrieve quality score")
 
 
 class CheckResultsView(APIView):
